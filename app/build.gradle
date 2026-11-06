@@ -1,20 +1,14 @@
-def buildAsLibrary = project.hasProperty('BUILD_AS_LIBRARY');
-def buildAsApplication = !buildAsLibrary
-if (buildAsApplication) {
-    apply plugin: 'com.android.application'
-}
-else {
-    apply plugin: 'com.android.library'
-}
+apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 31
+    namespace "net.freyta.smw"
+    compileSdkVersion 34
+    ndkVersion '25.2.9519653'
+
     defaultConfig {
-        if (buildAsApplication) {
-            applicationId "net.freyta.smw"
-        }
+        applicationId "net.freyta.smw"
         minSdkVersion 23
-        targetSdkVersion 31
+        targetSdkVersion 34
         versionCode 3
         versionName "1.0.2"
         externalNativeBuild {
@@ -22,11 +16,6 @@ android {
                 arguments "APP_PLATFORM=android-23"
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
             }
-            // cmake {
-            //     arguments "-DANDROID_APP_PLATFORM=android-16", "-DANDROID_STL=c++_static"
-            //     // abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
-            //     abiFilters 'arm64-v8a'
-            // }
         }
     }
     buildTypes {
@@ -35,44 +24,20 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    applicationVariants.all { variant ->
-        tasks["merge${variant.name.capitalize()}Assets"]
-            .dependsOn("externalNativeBuild${variant.name.capitalize()}")
+    sourceSets.main {
+        jniLibs.srcDir 'libs'
     }
-    if (!project.hasProperty('EXCLUDE_NATIVE_LIBS')) {
-        sourceSets.main {
-            jniLibs.srcDir 'libs'
+    externalNativeBuild {
+        ndkBuild {
+            path 'jni/Android.mk'
         }
-        externalNativeBuild {
-            ndkBuild {
-                path 'jni/Android.mk'
-            }
-            // cmake {
-            //     path 'jni/CMakeLists.txt'
-            // }
-        }
-       
     }
-    lintOptions {
+    lint {
         abortOnError false
-    }
-    
-    if (buildAsLibrary) {
-        libraryVariants.all { variant ->
-            variant.outputs.each { output ->
-                def outputFile = output.outputFile
-                if (outputFile != null && outputFile.name.endsWith(".aar")) {
-                    def fileName = "org.libsdl.app.aar";
-                    output.outputFile = new File(outputFile.parent, fileName);
-                }
-            }
-        }
     }
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'androidx.core:core:1.7.0' // Use the latest version
-    implementation 'com.android.support.constraint:constraint-layout:1.1.3'
-
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }

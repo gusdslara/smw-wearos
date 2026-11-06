@@ -39,3 +39,7 @@ google-services.json
 
 # SMW assets
 smw_assets.dat
+# Python cache
+__pycache__/
+*.pyc
+
