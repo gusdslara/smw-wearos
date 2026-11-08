@@ -204,6 +204,7 @@ public class WearSMWActivity extends SDLActivity implements SensorEventListener 
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
             ));
+            touchOverlay.bringToFront();
         }
     }
 
@@ -262,34 +263,30 @@ public class WearSMWActivity extends SDLActivity implements SensorEventListener 
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            // NUNCA disparar pulo por acelerômetro enquanto o usuário estiver tocando na tela
+            // ou acabou de tocar (protege contra pulos acidentais ao caminhar)
+            if (touchOverlay != null && touchOverlay.isTouchGuarded(600)) {
+                return;
+            }
+
             float x = event.values[0];
             float y = event.values[1];
             float z = event.values[2];
 
             float deltaZ = Math.abs(z - lastZ);
-            float deltaY = y - lastY; // Variação no eixo Y (apontando para cima na tela / em direção ao jogador)
+            float deltaY = y - lastY;
             float absDeltaY = Math.abs(deltaY);
             lastZ = z;
             lastY = y;
 
             long now = System.currentTimeMillis();
 
-            // 1. Movimento forte de braço/pulso: High Jump (B segurado 340ms)
-            if (deltaZ > 5.5f || absDeltaY > 6.0f) {
-                if (now - lastJumpGestureTime > 380) {
+            // Pulo por acelerômetro somente em movimento forte e deliberado de braço (sem dedo na tela)
+            if (deltaZ > 12.0f || absDeltaY > 11.0f) {
+                if (now - lastJumpGestureTime > 500) {
                     lastJumpGestureTime = now;
                     if (touchOverlay != null) {
                         touchOverlay.triggerArmHighJump();
-                    }
-                }
-            }
-            // 2. Leve tilt na direção do jogador (pulso inclina na sua direção / tick em Y):
-            // Um pequeno pulso rápido no botão B (Short Hop / tap leve de 60ms)
-            else if (deltaY > 2.2f && deltaY <= 5.5f && absDeltaY > Math.abs(x) * 0.8f) {
-                if (now - lastJumpGestureTime > 260) {
-                    lastJumpGestureTime = now;
-                    if (touchOverlay != null) {
-                        touchOverlay.triggerShortHop();
                     }
                 }
             }

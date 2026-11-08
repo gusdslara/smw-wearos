@@ -4,7 +4,9 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
@@ -47,6 +49,10 @@ import java.util.Map;
  *    - Arcos luminosos coloridos na borda circular identificando cada ação.
  */
 public class WearSmartTouchOverlay extends View {
+
+    // Toggle para prints de divulgação (true = tela escurecida e controles 100% visíveis; false = jogo limpo com toque reativo)
+    public static boolean SHOW_CONTROLS_FOR_PRINT = false;
+
 
     // Teclas mapeadas no smw.ini:
     public static final int KEY_UP = KeyEvent.KEYCODE_Y;
@@ -120,6 +126,12 @@ public class WearSmartTouchOverlay extends View {
     private final Paint arcPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF ovalRect = new RectF();
+    private final Paint scrimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint labelBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF labelRect = new RectF();
+    private RadialGradient vignetteShader = null;
+    private float lastVignetteR = -1f;
 
     public WearSmartTouchOverlay(Context context) {
         super(context);
@@ -131,7 +143,17 @@ public class WearSmartTouchOverlay extends View {
         textPaint.setTextAlign(Paint.Align.CENTER);
         textPaint.setFakeBoldText(true);
         textPaint.setColor(Color.WHITE);
-        textPaint.setTextSize(22f);
+        textPaint.setTextSize(21f);
+        textPaint.setShadowLayer(5f, 0, 1.5f, Color.argb(220, 0, 0, 0));
+
+        shadowPaint.setStyle(Paint.Style.STROKE);
+        shadowPaint.setStrokeCap(Paint.Cap.ROUND);
+
+        labelBgPaint.setStyle(Paint.Style.FILL);
+        labelBgPaint.setColor(Color.argb(175, 12, 14, 18));
+
+        setWillNotDraw(false);
+        setElevation(100f);
     }
 
     public void buzz(long millis) {
@@ -152,20 +174,20 @@ public class WearSmartTouchOverlay extends View {
         arc.startTime = System.currentTimeMillis();
 
         switch (btn) {
-            case "A":
-                arc.angle = (float) Math.PI;          // Esquerda
-                arc.color = Color.rgb(102, 242, 140); // Verde
-                break;
             case "B":
-                arc.angle = 0;                        // Direita
+                arc.angle = (float) Math.PI;          // Esquerda
                 arc.color = Color.rgb(255, 115, 102); // Vermelho
+                break;
+            case "A":
+                arc.angle = 0;                        // Direita
+                arc.color = Color.rgb(102, 242, 140); // Verde
                 break;
             case "RUN":
                 arc.angle = (float) Math.PI;
                 arc.color = Color.rgb(255, 180, 0);   // Laranja
                 break;
             case "HOP":
-                arc.angle = 0;                        // Direita (B)
+                arc.angle = (float) Math.PI;          // Esquerda (B)
                 arc.color = Color.rgb(255, 200, 100); // Âmbar claro
                 break;
             case "JUMP!":
@@ -253,8 +275,8 @@ public class WearSmartTouchOverlay extends View {
         if (y >= cy + band) {
             return "START";
         }
-        // Invertido a pedido do usuário: B na direita e A na esquerda
-        return (x >= cx) ? "B" : "A";
+        // B na esquerda (Normal Jump / Confirm), A na direita (Spin Jump)
+        return (x >= cx) ? "A" : "B";
     }
 
     private int getKeyCode(String btn) {
@@ -391,36 +413,12 @@ public class WearSmartTouchOverlay extends View {
                     twoFinger.isRunning = false;
                     twoFinger.dirKey = 0;
                 } else if (p.kind != null && !"two".equals(p.kind) && !"ignored".equals(p.kind)) {
-                    // Só trata como toque auxiliar se o primeiro dedo já estiver ativamente andando ("dir")
-                    // e o segundo toque estiver claramente na borda externa,
-                    // evitando disparar botão acidentalmente ao caminhar com a palma ou borda do polegar.
-                    float dxFromCenter = x - cx;
-                    float dyFromCenter = y - cy;
-                    float distCenter = (float) Math.sqrt(dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter);
-
-                    if ("dir".equals(p.kind) && distCenter > 0.45f * R) {
-                        String btn = getButtonAt(x, y);
-                        int key = getKeyCode(btn);
-
-                        TouchRecord tch = new TouchRecord();
-                        tch.x0 = x; tch.y0 = y;
-                        tch.x = x; tch.y = y;
-                        tch.t0 = now;
-                        tch.kind = "aux";
-                        tch.btn = btn;
-                        tch.key = key;
-                        touches.put(pointerId, tch);
-
-                        pressKey(key);
-                        flashButton(btn);
-                        if (!"A".equals(btn) && !"B".equals(btn)) {
-                            buzz(15);
-                        }
-                    } else {
-                        TouchRecord tch = new TouchRecord();
-                        tch.kind = "ignored";
-                        touches.put(pointerId, tch);
-                    }
+                    // Quando o dedo principal já estiver ativo (andando ou aguardando),
+                    // ignoramos toques adicionais para evitar disparos acidentais de botões (ex: B ou A)
+                    // causados por rolagem do polegar, palma ou bezel na tela pequena do relógio.
+                    TouchRecord tch = new TouchRecord();
+                    tch.kind = "ignored";
+                    touches.put(pointerId, tch);
                 } else {
                     TouchRecord tch = new TouchRecord();
                     tch.kind = "ignored";
@@ -543,8 +541,17 @@ public class WearSmartTouchOverlay extends View {
                     } else if (primaryTouchId != null && primaryTouchId == pointerId) {
                         primaryTouchId = null;
                         if ("pending".equals(tch.kind)) {
-                            String btn = getButtonAt(tch.x0, tch.y0);
-                            tapKey(getKeyCode(btn), btn);
+                            float dx = tch.x - tch.x0;
+                            float dy = tch.y - tch.y0;
+                            float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                            float swipePx = CONFIG_SWIPE * R;
+                            if (dist >= swipePx * 0.65f) {
+                                setDirection(getDirectionKey(dx, dy, 0));
+                                endDirection();
+                            } else {
+                                String btn = getButtonAt(tch.x0, tch.y0);
+                                tapKey(getKeyCode(btn), btn);
+                            }
                         } else if ("dir".equals(tch.kind)) {
                             endDirection();
                         }
@@ -597,6 +604,22 @@ public class WearSmartTouchOverlay extends View {
 
         long now = System.currentTimeMillis();
 
+        // 0. Escurecimento de tela para prints (ativado somente quando SHOW_CONTROLS_FOR_PRINT == true)
+        if (SHOW_CONTROLS_FOR_PRINT) {
+            canvas.drawColor(Color.argb(145, 0, 0, 0)); // ~57% preto para contraste máximo
+            if (vignetteShader == null || lastVignetteR != R) {
+                vignetteShader = new RadialGradient(
+                    cx, cy, R,
+                    new int[] { Color.argb(0, 0, 0, 0), Color.argb(110, 0, 0, 0), Color.argb(215, 0, 0, 0) },
+                    new float[] { 0.38f, 0.70f, 1.0f },
+                    Shader.TileMode.CLAMP
+                );
+                scrimPaint.setShader(vignetteShader);
+                lastVignetteR = R;
+            }
+            canvas.drawCircle(cx, cy, R, scrimPaint);
+        }
+
         // 1. Arco direcional atual
         int activeDir = currentDirKey != 0 ? currentDirKey : (twoFinger != null ? twoFinger.dirKey : 0);
         if (activeDir != 0) {
@@ -616,32 +639,78 @@ public class WearSmartTouchOverlay extends View {
             canvas.drawArc(ovalRect, dirAngle - 28, 56, false, arcPaint);
         }
 
-        // 2. Arcos com efeito fade-out dos botões
+        // 2. Todos os botões na borda circular (L, SELECT, R, B, A, START)
+        // Mantidos visíveis (~160 alpha) para exibir a interface completa na tela
+        // e iluminando com brilho máximo (240+) ao tocar.
+        String[] defaultButtons = {"L", "SELECT", "R", "B", "A", "START"};
+        float[] defaultAngles = {
+            (float) (-3 * Math.PI / 4),
+            (float) (-Math.PI / 2),
+            (float) (-Math.PI / 4),
+            (float) Math.PI,
+            0f,
+            (float) (Math.PI / 2)
+        };
+        int[] defaultColors = {
+            Color.rgb(255, 217, 89),
+            Color.rgb(217, 158, 255),
+            Color.rgb(255, 217, 89),
+            Color.rgb(255, 115, 102),
+            Color.rgb(102, 242, 140),
+            Color.rgb(115, 184, 255)
+        };
+
         boolean hasActiveFlashes = false;
-        for (FlashArc arc : activeFlashes.values()) {
-            long elapsed = now - arc.startTime;
-            if (elapsed < FLASH_DURATION_MS) {
-                hasActiveFlashes = true;
-                float progress = 1.0f - (float) elapsed / FLASH_DURATION_MS;
-                int alpha = (int) (progress * 220);
+        for (int i = 0; i < defaultButtons.length; i++) {
+            String label = defaultButtons[i];
+            float angle = defaultAngles[i];
+            int color = defaultColors[i];
 
-                int colorWithAlpha = Color.argb(alpha, Color.red(arc.color), Color.green(arc.color), Color.blue(arc.color));
-                arcPaint.setColor(colorWithAlpha);
-
-                ovalRect.set(cx - (R - lw), cy - (R - lw), cx + (R - lw), cy + (R - lw));
-                float deg = (float) Math.toDegrees(arc.angle);
-                float span = arc.label.length() > 1 ? 38 : 26;
-                canvas.drawArc(ovalRect, deg - span / 2, span, false, arcPaint);
-
-                float labelDist = R - lw * 2.5f;
-                float lx = cx + (float) Math.cos(arc.angle) * labelDist;
-                float ly = cy + (float) Math.sin(arc.angle) * labelDist + 8;
-                textPaint.setColor(Color.argb(alpha, 255, 255, 255));
-                canvas.drawText(arc.label, lx, ly, textPaint);
+            int alpha = 0;
+            FlashArc flash = activeFlashes.get(label);
+            if (flash != null) {
+                long elapsed = now - flash.startTime;
+                if (elapsed < FLASH_DURATION_MS) {
+                    hasActiveFlashes = true;
+                    float progress = 1.0f - (float) elapsed / FLASH_DURATION_MS;
+                    alpha = (int) (140 + progress * 115);
+                }
             }
+
+            if (SHOW_CONTROLS_FOR_PRINT) {
+                alpha = Math.max(alpha, 235);
+            }
+            if (alpha <= 0) continue;
+
+            int colorWithAlpha = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));
+            arcPaint.setColor(colorWithAlpha);
+
+            ovalRect.set(cx - (R - lw), cy - (R - lw), cx + (R - lw), cy + (R - lw));
+            float deg = (float) Math.toDegrees(angle);
+            float span = label.length() > 1 ? 38 : 26;
+
+            // Sombra escura sob o arco
+            shadowPaint.setStrokeWidth(lw + 3.2f);
+            shadowPaint.setColor(Color.argb((int) (alpha * 0.75f), 0, 0, 0));
+            canvas.drawArc(ovalRect, deg - span / 2, span, false, shadowPaint);
+
+            canvas.drawArc(ovalRect, deg - span / 2, span, false, arcPaint);
+
+            float labelDist = R - lw * 2.5f;
+            float lx = cx + (float) Math.cos(angle) * labelDist;
+            float ly = cy + (float) Math.sin(angle) * labelDist + 8;
+
+            // Pílula escura de fundo para o texto nunca sumir em fundos claros
+            float tw = textPaint.measureText(label);
+            labelRect.set(lx - tw * 0.5f - 6f, ly - 18f, lx + tw * 0.5f + 6f, ly + 6f);
+            labelBgPaint.setAlpha((int) (alpha * 0.88f));
+            canvas.drawRoundRect(labelRect, 8f, 8f, labelBgPaint);
+
+            textPaint.setColor(Color.argb(Math.min(255, alpha + 35), 255, 255, 255));
+            canvas.drawText(label, lx, ly, textPaint);
         }
 
-        if (hasActiveFlashes) {
+        if (hasActiveFlashes || SHOW_CONTROLS_FOR_PRINT) {
             postInvalidateOnAnimation();
         }
     }

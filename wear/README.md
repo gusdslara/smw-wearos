@@ -16,8 +16,7 @@ A tela circular do relógio se transforma no controle do jogo de maneira intuiti
 | **Toque no Topo (Direita)** | **R** | Olhar/Scroll para a direita |
 | **Toque no Topo (Centro)** | **SELECT** | Soltar item de reserva (cogumelo/flor/pena) |
 | **Toque na Base (Fundo Centro)** | **START** | Pausar jogo |
-| **2º Dedo durante a caminhada** | **Botão sob o dedo** | Segurar enquanto caminha (permite correr ou pular sem soltar o direcional) |
-| **Dois dedos deslizando ← / →** | **L / R** | Rápido atalho de ombros L / R |
+| **Deslizar com 2 dedos** | **Y + Direcional** | Correr e direcionar ao mesmo tempo (Mario Run / Dash) |
 | **Girar Coroa / Touch Bezel** | **Cima / Baixo** | Navegar menus e opções no mapa |
 | **Botão físico Back do relógio** | **START** | Pausar / Despausar |
 
