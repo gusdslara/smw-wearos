@@ -1,45 +1,59 @@
+# Super Mario World (SMW) - Android & Wear OS Ports
 
-# smw-android
-A port of SMW to Android. <br>
+A native port of **Super Mario World** (SNES) to Android phones, tablets, and **Wear OS smartwatches**, based on the C/C++ decompilation by [snesrev/smw](https://github.com/snesrev/smw).
 
-Original Repository: https://github.com/snesrev/smw <br>
+<p align="center">
+  <img src="watch_smw_jump_demo.png" alt="Super Mario World on Wear OS with Accelerometer Jump and Smart Controls" width="800">
+</p>
 
-Use the instructions on the original repository to extract the **smw.dat** file from your rom and put it in **Android/data/net.freyta.smw/files** <br>  
-Running the app once will create the directory. <br>
+---
 
-How to Change Settings:  <br>  
-***Android/data/net.freyta.smw/files** contains **smw.ini**. Use a text editor to change options.<br>
+## ⌚ Wear OS Smartwatch Port (`:wear`)
 
-###### Updated upstream
-Default Settings:<br>
-L3 Save State <br>
-R3 Load State <br>
+Play Super Mario World on your wrist (Galaxy Watch, Pixel Watch, Xiaomi Watch 2, etc.):
 
-------
+- **🤸 Arm Gesture / Accelerometer High Jump**: Flick your wrist/arm upward to execute a full Mario High Jump. Protected by a 600ms touch guard so finger movements never misfire.
+- **🏃 2-Finger Dash & Run (Mario Run)**: Slide with two fingers to run and steer simultaneously while automatically holding `Y`.
+- **🕹️ 1-Finger Dynamic D-Pad**: Move smoothly; the control anchor follows your thumb.
+- **🎮 Circular Rim HUD**: `B` (Normal Jump), `A` (Spin Jump), `L` / `R` (Scroll View), `SELECT` (Drop Reserve Item), `START` (Pause).
+- **⌚ Rotary Crown / Touch Bezel**: Scroll through maps and level select menus.
 
-This is a cobbled together version from [Waterdish](https://github.com/Waterdish/zelda3-android). Full credit goes to them, I just ported the SMW code over.
-=======
-Default Settings for gamepad:  <br>
-L3 = Save State<br>
-L3 = Load State <br>
+### Building Wear OS APK
+```bash
+./gradlew :wear:assembleDebug
+```
+Output: `wear/build/outputs/apk/debug/wear-debug.apk`
 
-Default Settings for touch screen:<br>
-Start + R = Save State<br>
-Start + L = Load State<br>
-Known issues with touch screen: pressing B while holding Y will shortly release Y (You can't jump holding a shell).<br>
+### Installing on Watch via ADB Wi-Fi
+```bash
+adb connect <WATCH_IP>:<PORT>
+adb install -r wear/build/outputs/apk/debug/wear-debug.apk
+```
 
-*Note: Credit to [@yeticarus](https://github.com/yeticarus) for their touch screen code.* 
+---
 
+## 📱 Android Phone / Tablet Port (`:app`)
 
-<h3>Instructions for creating smw.dat on android:</h3>
-1. Download PyDroid: https://play.google.com/store/apps/details?id=ru.iiec.pydroid3&hl=en_US. Choose to skip any options that ask for money, you can do all of the following steps without paying.<br>
-2. Open the hamburger menu at the top left of the app and select Pip.<br>
-3. Type in "Pillow" without the quotes and it will have you install the repository app from the app store.<br>
-4. Once the repository app is installed, you can install "Pillow" and "pyyaml" <br>
-5. Download the <b>source code</b> zip file for smw. The zip file with the exe file in it will not work. <br>
-6. Extract the zip file. <br>
-7. Place your rom file in the main smw directory that you extracted, the same one as extract_assets.bat, and rename it to smw.sfc <br>
-8. Open PyDroid again, open the hamburger menu, and select Terminal.<br>
-9. Navigate to where you placed the rom file. (If you are unfamiliar with terminal commands, "ls" lists the folders and files and "cd Foldername" changes the directory.  <br> 
-10. Paste in this command <code>python3 assets/restool.py --extract-from-rom</code> <br>
-11. It should pause for a while and when it finishes you should be able to see smw.dat in the same folder as your rom. You can go ahead and copy that to the Android/data/net.freyta.smw/files location. <br>
+### Building Phone APK
+```bash
+./gradlew :app:assembleDebug
+```
+Output: `app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## 📦 Game Assets Setup
+
+The game requires `smw.dat` extracted from your legally owned ROM:
+1. Place `smw.dat` into:
+   `/storage/emulated/0/Android/data/net.freyta.smw/files/smw.dat`
+2. Run the game once to create the directories and configuration files (`smw.ini`).
+
+---
+
+## 📜 Credits
+
+- Original game by **Nintendo** (1990).
+- C/C++ native decompilation by [snesrev/smw](https://github.com/snesrev/smw).
+- Original Android port by [freyta/smw-android](https://github.com/freyta/smw-android) (credited to Waterdish & yeticarus).
+- Wear OS port, gesture accelerometer jump, and smart circular overlay by **Gustavo Lara** ([@gusdslara](https://github.com/gusdslara)).
