@@ -51,9 +51,8 @@ The game requires `smw.dat` extracted from your legally owned ROM:
 
 ---
 
-## 📜 Credits
+## 📜 Credits & Acknowledgments
 
 - Original game by **Nintendo** (1990).
 - C/C++ native decompilation by [snesrev/smw](https://github.com/snesrev/smw).
 - Original Android port by [freyta/smw-android](https://github.com/freyta/smw-android) (credited to Waterdish & yeticarus).
-- Wear OS port, gesture accelerometer jump, and smart circular overlay by **Gustavo Lara** ([@gusdslara](https://github.com/gusdslara)).

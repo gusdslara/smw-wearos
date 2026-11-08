@@ -48,9 +48,8 @@ Running the app once automatically creates the target folder.
 
 ---
 
-## 📜 Credits
+## 📜 Credits & Acknowledgments
 
 - Original game by **Nintendo** (1990).
 - C/C++ native decompilation by [snesrev/smw](https://github.com/snesrev/smw).
-- Android frontend by [freyta/smw-android](https://github.com/freyta/smw-android).
-- Wear OS port, accelerometer jump gesture, and circular controls by **Gustavo Lara** ([@gusdslara](https://github.com/gusdslara)).
+- Android wrapper by [freyta/smw-android](https://github.com/freyta/smw-android).
